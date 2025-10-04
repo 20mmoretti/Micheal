@@ -1617,7 +1617,7 @@ async function convertFileToDeviceMp3(file, kbps = 32) {
   const pcm16 = floatTo16BitPCM(res);
 
   // MP3 encode (1 ch, 8000 Hz, kbps)
-  const enc = new lamejs.Mp3Encoder(1, 8000, kbps|0 || 32);
+  const enc = new lamejs.Mp3Encoder(1, 8000, 32); // force constant bitrate 32 kbps
   const block = 1152;
   const parts = [];
   for (let i = 0; i < pcm16.length; i += block) {
