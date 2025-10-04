@@ -1153,54 +1153,64 @@ $('#fileInput').addEventListener('change', async (e)=>{
   }
 });
 
-    
-    $('#btnSendFile').addEventListener('click', async ()=>{
-    if (!isConnected()) return log('Not connected','warn');
+   $('#btnSendFile').addEventListener('click', async () => {
+  if (!isConnected()) return log('Not connected', 'warn');
 
-    // Must have a chosen file
-    if (!lastPickedFile && !lastFileBytes) {
-        log('Pick a file first.', 'warn'); 
-        return;
-    }
+  if (!lastPickedFile) {
+    log('Pick a file first.', 'warn');
+    return;
+  }
 
-    // If user toggled "Convert" AFTER selecting the file, convert now
-    try {
-        if ($('#chkConvert')?.checked && lastPickedFile) {
-        const kbps = parseInt($('#mp3Kbps')?.value || '32', 10);
-        log(`Converting to MP3 8 kHz mono (${kbps} kbps) before send…`);
-        const { u8, name } = await convertFileToDeviceMp3(lastPickedFile, kbps);
-        lastFileBytes = u8;
-        // If the filename box is empty or still matches the previous base, prefer .mp3
-        const typed = ($('#fileName').value || '').trim();
-        if (!typed || typed === lastFileName) {
-            $('#fileName').value = name;
-        }
-        lastFileName = name;
-        } else if (!$('#chkConvert')?.checked && lastOriginalBytes) {
-        // Ensure we’re using the original bytes if convert is off
-        lastFileBytes = lastOriginalBytes;
-        lastFileName = lastPickedFile?.name || lastFileName;
-        }
-    } catch (err) {
-        log(`Convert error: ${err.message} — sending original file`, 'warn');
-        if (lastOriginalBytes) { lastFileBytes = lastOriginalBytes; lastFileName = lastPickedFile?.name || lastFileName; }
-    }
+  let sendBytes;
+  let sendName;
 
-    // Filename to send (auto .mp3 if converting)
-    let name = ($('#fileName').value || lastFileName || 'skelly.bin').trim();
-    if ($('#chkConvert')?.checked && !/\.mp3$/i.test(name)) {
-        name = name.replace(/\.\w+$/,'') + '.mp3';
+  try {
+    if ($('#chkConvert')?.checked) {
+      const kbps = parseInt($('#mp3Kbps')?.value || '32', 10);
+      log(`Converting to MP3 8 kHz mono (${kbps} kbps) before send…`);
+      const { u8, name } = await convertFileToDeviceMp3(lastPickedFile, kbps);
+      sendBytes = u8;
+      sendName = name;
+      const typed = ($('#fileName').value || '').trim();
+      if (!typed || typed === lastFileName) {
         $('#fileName').value = name;
+      }
+      lastFileName = name;
+      lastFileBytes = u8;
+    } else {
+      sendBytes = lastOriginalBytes;
+      sendName = lastPickedFile.name;
+      lastFileBytes = sendBytes;
+      lastFileName = sendName;
     }
-    if (!name) { log('Provide a device filename.', 'warn'); return; }
-    warnIfNameConflicts(name, '#fileName');
-    // Show heads-up unless user opted out
-    const proceed = await ensureSlowWarning();
-    if (!proceed) return;
+  } catch (err) {
+    log(`Convert error: ${err.message} — sending original file`, 'warn');
+    sendBytes = lastOriginalBytes;
+    sendName = lastPickedFile.name;
+    lastFileBytes = sendBytes;
+    lastFileName = sendName;
+  }
 
-    await sendFileToDevice(lastFileBytes, name);
-    });
+  // Clean filename
+  let finalName = ($('#fileName').value || sendName || 'skelly.bin').trim();
+  if ($('#chkConvert')?.checked && !/\.mp3$/i.test(finalName)) {
+    finalName = finalName.replace(/\.\w+$/, '') + '.mp3';
+    $('#fileName').value = finalName;
+  }
 
+  if (!finalName) {
+    log('Provide a device filename.', 'warn');
+    return;
+  }
+
+  warnIfNameConflicts(finalName, '#fileName');
+
+  const proceed = await ensureSlowWarning();
+  if (!proceed) return;
+
+  console.log('[PRE-FLIGHT SEND]', { bytes: sendBytes.length, name: finalName });
+  await sendFileToDevice(sendBytes, finalName);
+});
 
   $('#btnCancelFile').addEventListener('click', async ()=>{
     if (!transfer.inProgress) return;
