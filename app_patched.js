@@ -125,7 +125,7 @@
         const nameHex = utf16leHexNull(safeName);
         console.log('[C0 PARAMS]', { size, per, maxPack, safeName });
 
-        await _send(_buildCmd('C0', intToHex(size,4) + intToHex(maxPack,2) + '5C55' + nameHex, 8));
+        await _send(_buildCmd('C0', intToHex(size,4) + intToHex(maxPack,2) + '5C55' + nameHex, 0));
         let c0 = await waitForAck('BBC0', 5000);
         if (!c0) throw new Error('Timeout waiting for BBC0');
         const c0Failed  = parseInt(c0.slice(4,6),16);
